@@ -11,8 +11,10 @@ import org.example.repositories.ProductImageRepository;
 import org.example.repositories.ProductRepository;
 import org.example.storage.FileSaveFormat;
 import org.example.storage.StorageService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -48,40 +50,42 @@ public class ProductController {
     }
 
     @PutMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional // Добавляем аннотацию для транзакций
     public ResponseEntity<ProductItemDTO> updateProduct(@PathVariable int id, @ModelAttribute ProductUpdateDTO dto) {
-        Optional<ProductEntity> existingProduct = productRepository.findById(id);
+        try {
+            Optional<ProductEntity> existingProduct = productRepository.findById(id);
 
-        if (existingProduct.isPresent()) {
-            ProductEntity product = productMapper.productByUpdateProductDTO(dto);
-            product.setImages(new ArrayList<>());
-            product.setId(id);
+            if (existingProduct.isPresent()) {
+                ProductEntity product = productMapper.productByUpdateProductDTO(dto);
+                product.setImages(new ArrayList<>());
+                product.setId(id);
 
-            for (ProductImageEntity existingImage : existingProduct.get().getImages()) {
-                int idDelete = existingImage.getId();
-                storageService.removeFile(existingImage.getImage());
+                List<ProductImageEntity> existingImages = existingProduct.get().getImages();
+                if (!existingImages.isEmpty()) { // Проверяем, что список изображений не пустой
+                    for (ProductImageEntity existingImage : existingImages) {
+                        storageService.removeFile(existingImage.getImage());
+                        productImageRepository.deleteById(existingImage.getId());
+                    }
+                }
 
-               productImageRepository.deleteById(existingImage.getId());
-
-
+                for (MultipartFile image : dto.getImages()) {
+                    String imageSave = storageService.saveByFormat(image, FileSaveFormat.JPG);
+                    var pi = new ProductImageEntity()
+                            .builder()
+                            .image(imageSave)
+                            .product(product)
+                            .build();
+                    productImageRepository.save(pi);
+                    product.getImages().add(pi);
+                }
+                productRepository.save(product);
+                return ResponseEntity.ok().body(productMapper.productToItemDTO(product));
+            } else {
+                return ResponseEntity.notFound().build();
             }
-
-
-
-
-            for (MultipartFile image : dto.getImages()) {
-                String imageSave = storageService.saveByFormat(image, FileSaveFormat.JPG);
-                var pi = new ProductImageEntity()
-                        .builder()
-                        .image(imageSave)
-                        .product(product)
-                        .build();
-                productImageRepository.save(pi);
-                product.getImages().add(pi);
-            }
-            productRepository.save(product);
-            return ResponseEntity.ok().body(productMapper.productToItemDTO(product));
-        } else {
-            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            // Обработка ошибок или логирование
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
