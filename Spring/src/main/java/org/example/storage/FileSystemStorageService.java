@@ -1,5 +1,6 @@
 package org.example.storage;
 
+import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -141,6 +142,26 @@ public class FileSystemStorageService implements StorageService {
             return randomFileName;
         } catch (IOException e) {
             throw new StorageException("Проблема перетворення та збереження base64", e);
+        }
+    }
+
+    @Override
+    public String saveByFormat(MultipartFile file, FileSaveFormat format) {
+        try {
+            String extension = format.name().toLowerCase();
+            String randomFileName = UUID.randomUUID().toString()+"."+extension;
+            int [] imageSize = {32, 150, 300, 600, 1200}; // масив розмірів фотографій
+            BufferedImage bufferedImage = ImageIO.read(new ByteArrayInputStream(file.getBytes()));
+            for(int size : imageSize) {
+                String fileOutputSave = rootLocation.toString()+"/"+size+"_"+randomFileName;
+                Thumbnails.of(bufferedImage)
+                        .size(size, size)
+                        .outputFormat(extension)
+                        .toFile(fileOutputSave);
+            }
+            return randomFileName;
+        }catch (IOException e) {
+            throw new StorageException("Проблема перетворення фото", e);
         }
     }
 }
