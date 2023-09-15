@@ -98,12 +98,19 @@ public class FileSystemStorageService implements StorageService {
     public  void  removeFile(String removeFile){
         int [] imageSize = {32, 150, 300, 600, 1200};
         for (int size : imageSize) {
-            Path filePath = load(size+"_"+removeFile);
+            Path filePath = load(size + "_" + removeFile);
             File file = new File(filePath.toString());
-            if (file.delete()) {
-                System.out.println(removeFile + " Файл видалено.");
-            } else System.out.println(removeFile + " Файл не знайдено.");
+            if (file.exists()) {
+                if (file.delete()) {
+                    System.out.println(removeFile + " Файл видалено.");
+                } else {
+                    System.out.println(removeFile + " Не вдалося видалити файл.");
+                }
+            } else {
+                System.out.println(removeFile + " Файл не знайдено.");
+            }
         }
+
     }
 
     @Override

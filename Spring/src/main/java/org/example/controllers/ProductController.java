@@ -30,13 +30,12 @@ public class ProductController {
     private final StorageService storageService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ProductItemDTO> create(@ModelAttribute ProductCreateDTO dto)
-    {
+    public ResponseEntity<ProductItemDTO> create(@ModelAttribute ProductCreateDTO dto) {
         var p = productMapper.productByCreateProductDTO(dto);
         p.setImages(new ArrayList<>());
         productRepository.save(p);
         for (MultipartFile image : dto.getImages()) {
-            var imageSave = storageService.saveByFormat(image, FileSaveFormat.WEBP);
+            var imageSave = storageService.saveByFormat(image, FileSaveFormat.JPG);
             var pi = new ProductImageEntity()
                     .builder()
                     .image(imageSave)
@@ -58,14 +57,19 @@ public class ProductController {
             product.setId(id);
 
             for (ProductImageEntity existingImage : existingProduct.get().getImages()) {
-                storageService.removeFile(existingImage.getImage());
                 int idDelete = existingImage.getId();
-                productImageRepository.deleteById(idDelete);
+                storageService.removeFile(existingImage.getImage());
+
+               productImageRepository.deleteById(existingImage.getId());
+
 
             }
 
+
+
+
             for (MultipartFile image : dto.getImages()) {
-                String imageSave = storageService.saveByFormat(image, FileSaveFormat.WEBP);
+                String imageSave = storageService.saveByFormat(image, FileSaveFormat.JPG);
                 var pi = new ProductImageEntity()
                         .builder()
                         .image(imageSave)
@@ -74,13 +78,13 @@ public class ProductController {
                 productImageRepository.save(pi);
                 product.getImages().add(pi);
             }
-
             productRepository.save(product);
             return ResponseEntity.ok().body(productMapper.productToItemDTO(product));
         } else {
             return ResponseEntity.notFound().build();
         }
     }
+
 
     @GetMapping("{id}")
     public ResponseEntity<ProductItemDTO> getProduct(@PathVariable int id) {
@@ -107,6 +111,34 @@ public class ProductController {
             return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/{productId}/{imageId}")
+    public ResponseEntity<Void> deleteProductImage(@PathVariable int productId, @PathVariable int imageId) {
+        Optional<ProductEntity> optionalProduct = productRepository.findById(productId);
+
+        if (optionalProduct.isPresent()) {
+            ProductEntity product = optionalProduct.get();
+            List<ProductImageEntity> productImages = product.getImages();
+
+            // Пошук фотографії за imageId
+            Optional<ProductImageEntity> optionalImage = productImages.stream()
+                    .filter(image -> image.getId() == imageId)
+                    .findFirst();
+
+            if (optionalImage.isPresent()) {
+                ProductImageEntity imageToDelete = optionalImage.get();
+                storageService.removeFile(imageToDelete.getImage());
+                productImages.remove(imageToDelete); // Видалення фотографії зі списку фотографій продукта
+                productImageRepository.deleteById(imageToDelete.getId()); // Видалення фотографії з репозиторію фотографій
+                productRepository.save(product); // Оновлення продукта у репозиторії продуктів
+                return ResponseEntity.noContent().build();
+            } else {
+                return ResponseEntity.notFound().build(); // Фотографія не знайдена
+            }
+        } else {
+            return ResponseEntity.notFound().build(); // Продукт не знайдений
         }
     }
 }
