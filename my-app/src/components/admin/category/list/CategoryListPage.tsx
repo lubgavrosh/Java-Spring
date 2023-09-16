@@ -39,14 +39,14 @@ const CategoryListPage = () => {
             <td className="px-6 py-4">
                 {item.description}
             </td>
-            <td className="px-6 py-4">
+            <td className="flex flex-wrap">
                 <img className="large" src={item.image} alt={item.name}/>
             </td>
             <td className="px-6 py-4">
 
-                <Link to={`/edit/${item.id}`}
+                <Link to={`edit/${item.id}`}
                     className="mr-4 bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded">
-                    Змінить
+                    Змінити
                </Link>
 
                 <ModalDelete
@@ -101,7 +101,7 @@ const CategoryListPage = () => {
 
             </div>
             <div className="mx-auto max-w-2xl lg:text-4xl lg:text-end ">
-                <Link to={"/create"}
+                <Link to={"create/"}
                       className="mb-8 text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
                     Create New Category
                 </Link>

@@ -12,7 +12,7 @@ const CategoryCreatePage = () => {
         useState<ICategoryItem[]>([]);
 
     useEffect(() => {
-        http_common.get<ICategoryItem[]>("/").then((resp) => {
+        http_common.get<ICategoryItem[]>("/category").then((resp) => {
             setCategories(resp.data);
         });
     }, []);
@@ -54,7 +54,7 @@ const CategoryCreatePage = () => {
                     }
                 }
             );
-            navigate("/");
+            navigate("/category");
         } catch {
             console.log("Server error");
         }

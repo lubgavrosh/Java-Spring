@@ -1,41 +1,40 @@
-import { useNavigate, useParams } from "react-router-dom";
-import { ICategoryEdit } from "./types";
+import { useNavigate } from "react-router-dom";
+import { IProductCreate } from "./types";
 import { useFormik } from "formik";
 import http_common from "../../../../http_common.ts";
 import { ChangeEvent, useEffect, useState } from "react";
+import { IProductItem } from "../list/types.ts";
 import * as Yup from "yup";
-import {ICategoryItem} from "../list/types.ts";
 
-
-const CategoryEditPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-
-
-    const [categories, setCategories] = useState<ICategoryItem[]>([]);
+const ProductCreatePage = () => {
+    const [products, setProducts] = useState<IProductItem[]>([]);
 
     useEffect(() => {
-        http_common.get<ICategoryItem[]>("/category").then((resp) => {
-            setCategories(resp.data);
+        http_common.get<IProductItem[]>("/api/products").then((resp) => {
+            setProducts(resp.data);
         });
     }, []);
 
-    const init: ICategoryEdit = {
-        id:0,
+    const navigate = useNavigate();
+
+    const initialValues: IProductCreate = {
         name: "",
         image: null,
         description: "",
+        categoryId: 0,
     };
 
-    const categorySchema = Yup.object().shape({
+    const productSchema = Yup.object().shape({
         name: Yup.string()
             .required("Name is required")
             .max(255, "Name must be smaller")
-            .test("unique-category", "Category already exists", function (value) {
+            .test("unique-category", "Category already exists", function (
+                value
+            ) {
                 if (!value) {
                     return false;
                 }
-                const categoryExists = categories.some(
+                const categoryExists = products.some(
                     (c) => c.name.toLowerCase() === value.toLowerCase()
                 );
                 return !categoryExists;
@@ -43,35 +42,49 @@ const CategoryEditPage = () => {
         description: Yup.string()
             .required("Description is required")
             .max(4000, "Description must be smaller"),
-        image: Yup.mixed().notRequired(),
+        image: Yup.array()
+            .min(1, "At least one image is required")
+            .test("image-type", "Only image files are allowed", function (value) {
+                if (!value) return true;
+                return value.every(
+                    (file) =>
+                        file.type === "image/jpeg" || file.type === "image/png"
+                );
+            }),
     });
 
-    const onFormikSubmit = async (values: ICategoryEdit) => {
+    const onFormikSubmit = async (values: IProductCreate) => {
         try {
-            await http_common.put(`/api/category/${id}`, values, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            });
-            navigate("/category");
-        } catch (error) {
-            console.error("Server error", error);
+            const formData = new FormData();
+            formData.append("name", values.name);
+            formData.append("description", values.description);
+            formData.append("categoryId", values.categoryId.toString());
+
+            if (values.image) {
+                for (let i = 0; i < values.image.length; i++) {
+                    formData.append("image", values.image[i]);
+                }
+            }
+
+            await http_common.post("/api/products", formData);
+            navigate("/products");
+        } catch {
+            console.log("Server error");
         }
     };
 
     const formik = useFormik({
-        initialValues: init,
+        initialValues,
         onSubmit: onFormikSubmit,
-        validationSchema: categorySchema,
+        validationSchema: productSchema,
     });
 
     const { values, errors, touched, handleChange, handleSubmit, setFieldValue, handleBlur } = formik;
 
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const file =
-            e.currentTarget.files && e.currentTarget.files[0];
-        if (file) {
-            setFieldValue("image", file);
+        const files = e.currentTarget.files;
+        if (files) {
+            setFieldValue("image", Array.from(files));
         }
         e.target.value = "";
     };
@@ -80,11 +93,11 @@ const CategoryEditPage = () => {
         <>
             <div className="mx-auto text-center">
                 <h1 className="text-3xl font-bold text-black sm:text-4xl">
-                    Редагувати категорію
+                    Додати продукт
                 </h1>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-4">
+            <form onSubmit={handleSubmit} className={"mt-4"}>
                 <i
                     className="bi bi-arrow-left-circle-fill back-button"
                     onClick={() => navigate("..")}
@@ -107,7 +120,7 @@ const CategoryEditPage = () => {
                         value={values.name}
                     />
                     {errors.name && touched.name && (
-                        <div className="mt-2 text-sm text-red-600 dark:text-red-500">
+                        <div className={"mt-2 text-sm text-red-600 dark:text-red-500"}>
                             {errors.name}
                         </div>
                     )}
@@ -129,7 +142,7 @@ const CategoryEditPage = () => {
                         value={values.description}
                     />
                     {errors.description && touched.description && (
-                        <div className="mt-2 text-sm text-red-600 dark:text-red-500">
+                        <div className={"mt-2 text-sm text-red-600 dark:text-red-500"}>
                             {errors.description}
                         </div>
                     )}
@@ -144,13 +157,18 @@ const CategoryEditPage = () => {
                                 : "dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:hover:border-gray-500 dark:hover:bg-gray-600"
                         }`}
                     >
-                        {values.image ? (
-                            <img
-                                src={URL.createObjectURL(values.image)}
-                                alt="Selected"
-                                className="p-1 object-fill rounded-lg cursor-pointer"
-                                style={{ maxWidth: "100%", maxHeight: "100%" }}
-                            />
+                        {values.image && values.image.length > 0 ? (
+                            <div className="flex flex-wrap">
+                                {values.image.map((file, index) => (
+                                    <img
+                                        key={index}
+                                        src={URL.createObjectURL(file)}
+                                        alt={`Selected ${index + 1}`}
+                                        className="p-1 object-fill rounded-lg cursor-pointer m-2"
+                                        style={{ maxWidth: "100px", maxHeight: "100px" }}
+                                    />
+                                ))}
+                            </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                 <svg
@@ -184,6 +202,7 @@ const CategoryEditPage = () => {
                         className="hidden"
                         name="image"
                         accept="image/*"
+                        multiple
                         onChange={handleFileChange}
                     />
                     {errors.image && touched.image && (
@@ -194,15 +213,14 @@ const CategoryEditPage = () => {
                 </div>
 
                 <button
-                    type="button"
-                    onClick={() => formik.submitForm()} // Додайте обробник кліків, який виконує onSubmit форми
+                    type="submit"
                     className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
                 >
-                    Update
+                    Create
                 </button>
             </form>
         </>
     );
 };
 
-export default CategoryEditPage;
+export default ProductCreatePage;
