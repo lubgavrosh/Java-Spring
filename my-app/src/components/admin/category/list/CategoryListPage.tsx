@@ -11,7 +11,7 @@ const CategoryListPage = () => {
 
     const getData = () => {
         http_common
-            .get<ICategoryItem[]>("/")
+            .get<ICategoryItem[]>("/api/category")
             .then(resp => {
                 setList(resp.data);
             });
@@ -40,7 +40,7 @@ const CategoryListPage = () => {
                 {item.description}
             </td>
             <td className="flex flex-wrap">
-                <img className="large" src={item.image} alt={item.name}/>
+                <img className="large" src={`http://localhost:8081/${item.imageSmall}`} alt={item.name}/>
             </td>
             <td className="px-6 py-4">
 

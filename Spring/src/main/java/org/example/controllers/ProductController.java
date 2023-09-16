@@ -1,5 +1,6 @@
 package org.example.controllers;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.AllArgsConstructor;
 import org.example.dto.product.ProductCreateDTO;
 import org.example.dto.product.ProductItemDTO;
@@ -25,6 +26,7 @@ import java.util.Optional;
 @RestController
 @AllArgsConstructor
 @RequestMapping("api/products")
+@SecurityRequirement(name="my-api")
 public class ProductController {
     private final ProductRepository productRepository;
     private final ProductImageRepository productImageRepository;
@@ -32,21 +34,19 @@ public class ProductController {
     private final StorageService storageService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ProductItemDTO> create(@ModelAttribute ProductCreateDTO dto) {
-        var p = productMapper.productByCreateProductDTO(dto);
-        p.setImages(new ArrayList<>());
-        productRepository.save(p);
+    public ResponseEntity<ProductEntity> create(@ModelAttribute ProductCreateDTO dto) {
+        ProductEntity product = productMapper.productByCreateProductDTO(dto);
+        product.setImages(new ArrayList<>());
+        productRepository.save(product);
         for (MultipartFile image : dto.getImages()) {
-            var imageSave = storageService.saveByFormat(image, FileSaveFormat.JPG);
-            var pi = new ProductImageEntity()
-                    .builder()
-                    .image(imageSave)
-                    .product(p)
-                    .build();
-            productImageRepository.save(pi);
-            p.getImages().add(pi);
+            String fileName = storageService.saveThumbnailator(image, FileSaveFormat.WEBP);
+            ProductImageEntity productImage = new ProductImageEntity();
+            productImage.setImage(fileName);
+            productImage.setProduct(product);
+            productImageRepository.save(productImage);
+            product.getImages().add(productImage);
         }
-        return ResponseEntity.ok().body(productMapper.productToItemDTO(p));
+        return ResponseEntity.ok().body(product);
     }
 
     @PutMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -69,14 +69,11 @@ public class ProductController {
                 }
 
                 for (MultipartFile image : dto.getImages()) {
-                    String imageSave = storageService.saveByFormat(image, FileSaveFormat.JPG);
-                    var pi = new ProductImageEntity()
-                            .builder()
-                            .image(imageSave)
-                            .product(product)
-                            .build();
-                    productImageRepository.save(pi);
-                    product.getImages().add(pi);
+                    String fileName = storageService.saveThumbnailator(image, FileSaveFormat.WEBP);
+                    ProductImageEntity productImage = new ProductImageEntity();
+                    productImage.setImage(fileName);
+                    productImage.setProduct(product);
+                    product.getImages().add(productImage);
                 }
                 productRepository.save(product);
                 return ResponseEntity.ok().body(productMapper.productToItemDTO(product));
@@ -98,7 +95,7 @@ public class ProductController {
     }
 
     @GetMapping()
-    public ResponseEntity<List<ProductItemDTO>> getAllCategories() {
+    public ResponseEntity<List<ProductItemDTO>> getAllProducts() {
         return ResponseEntity.ok(productMapper.listProductsToItemDTO(productRepository.findAll()));
     }
 

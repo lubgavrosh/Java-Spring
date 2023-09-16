@@ -2,62 +2,67 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import http_common from "../../../../http_common";
 import ModalDelete from "../../../common/ModalDelete";
-import { IProductItem } from "./types";
+import { IProductItem, IImagesItem } from "./types";
 
 const ProductListPage = () => {
     const [list, setList] = useState<IProductItem[]>([]);
 
-    const getData =  () => {
+    const getData = () => {
         http_common
             .get<IProductItem[]>("/api/products")
             .then(resp => {
                 setList(resp.data);
             });
-
     }
+
     useEffect(() => {
         getData();
     }, []);
+
     const handleDelete = async (id: number) => {
         try {
-            await http_common.delete(`/api/products/${id}`).then(()=>{
-           getData();
-            });
+            await http_common.delete(`/api/products/${id}`);
+            getData();
         } catch (error) {
             console.error("Error deleting product:", error);
         }
     };
 
+    const renderImages = (images: IImagesItem[]) => {
+        return (
+            <div className="flex flex-wrap">
+                {images.map((image, index) => (
+                    <img
+                        key={index}
+                        className="large m-2"
+                        src={`http://localhost:8081/images/150_${image.image}`}
+                        alt={`Product Image ${index}`}
+                    />
+                ))}
+            </div>
+        );
+    };
 
-
-    const content =list.map(item=> (
-            <tr className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
-                key={item.id} >
-                <th
-                    scope="row"
-                    className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                    {item.name}
-                </th>
-                <td className="px-6 py-4">{item.description}</td>
-                <td className="flex flex-wrap">
-/**фотографії**/
-                </td>
-                <td className="px-6 py-4">
-                    <Link
-                        to={`edit/${item.id}`}
-                        className="mr-4 bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded"
-                    >
-                        Змінити
-                    </Link>
-                    <ModalDelete
-                        id={item.id}
-                        text={item.name}
-                        deleteFunc={handleDelete}
-                    ></ModalDelete>
-                </td>
-            </tr>
-
-
+    const content = list.map(item => (
+        <tr className="bg-white border-b dark:bg-gray-800 dark:border-gray-700" key={item.id}>
+            <th
+                scope="row"
+                className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white"
+            >
+                {item.name}
+            </th>
+            <td className="px-6 py-4">{item.description}</td>
+            <td className="px-6 py-4">{renderImages(item.images)}</td>
+            <td className="px-6 py-4">
+                <Link
+                    to={`edit/${item.id}`}
+                    className="mr-4 bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded"
+                >
+                    Змінить
+                </Link>
+                <ModalDelete id={item.id} text={item.name} deleteFunc={handleDelete}></ModalDelete>
+            </td>
+        </tr>
     ));
 
     return (
@@ -86,9 +91,7 @@ const ProductListPage = () => {
                         </th>
                     </tr>
                     </thead>
-                    <tbody>
-                    {content}
-                    </tbody>
+                    <tbody>{content}</tbody>
                 </table>
             </div>
             <div className="mx-auto max-w-2xl lg:text-4xl lg:text-end">
@@ -100,7 +103,7 @@ const ProductListPage = () => {
                 </Link>
             </div>
         </>
-    )
+    );
 }
 
 export default ProductListPage;

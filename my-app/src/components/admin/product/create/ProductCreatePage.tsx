@@ -1,226 +1,191 @@
-import { useNavigate } from "react-router-dom";
-import { IProductCreate } from "./types";
-import { useFormik } from "formik";
-import http_common from "../../../../http_common.ts";
 import { ChangeEvent, useEffect, useState } from "react";
-import { IProductItem } from "../list/types.ts";
-import * as Yup from "yup";
+import { FaTrash } from "react-icons/fa";
+import { Link, useNavigate } from "react-router-dom";
+import { IProductItem} from "../list/types.ts";
+import {IProductCreate} from "./types.ts";
+import { ICategoryItem } from "../../category/list/types";
+import http_common from "../../../../http_common.ts";
+import InputGroup from "../../../common/InputGroup.tsx";
+import SelectGroup from "../../../common/SelectGroup.tsx";
 
 const ProductCreatePage = () => {
-    const [products, setProducts] = useState<IProductItem[]>([]);
+    const navigator = useNavigate();
+
+    const [model, setModel] = useState<IProductCreate>({
+        name: "",
+        description: "",
+        images:[],
+        price: 0,
+        category_id: 1
+    });
+
+    const [categories, setCategories] = useState<Array<ICategoryItem>>([]);
 
     useEffect(() => {
-        http_common.get<IProductItem[]>("/api/products").then((resp) => {
-            setProducts(resp.data);
-        });
+        http_common
+            .get<Array<ICategoryItem>>(`/category`)
+            .then((resp) => {
+                console.log("resp = ", resp);
+                setCategories(resp.data);
+            });
     }, []);
 
-    const navigate = useNavigate();
 
-    const initialValues: IProductCreate = {
-        name: "",
-        image: null,
-        description: "",
-        categoryId: 0,
-    };
 
-    const productSchema = Yup.object().shape({
-        name: Yup.string()
-            .required("Name is required")
-            .max(255, "Name must be smaller")
-            .test("unique-category", "Category already exists", function (
-                value
-            ) {
-                if (!value) {
-                    return false;
-                }
-                const categoryExists = products.some(
-                    (c) => c.name.toLowerCase() === value.toLowerCase()
-                );
-                return !categoryExists;
-            }),
-        description: Yup.string()
-            .required("Description is required")
-            .max(4000, "Description must be smaller"),
-        image: Yup.array()
-            .min(1, "At least one image is required")
-            .test("image-type", "Only image files are allowed", function (value) {
-                if (!value) return true;
-                return value.every(
-                    (file) =>
-                        file.type === "image/jpeg" || file.type === "image/png"
-                );
-            }),
-    });
+    const onChangeHandler= (e: ChangeEvent<HTMLInputElement>| ChangeEvent<HTMLTextAreaElement>| ChangeEvent<HTMLSelectElement>) => {
+        setModel({...model, [e.target.name]: e.target.value});
+    }
 
-    const onFormikSubmit = async (values: IProductCreate) => {
+    const onFileChangeHandler = (e: ChangeEvent<HTMLInputElement>) => {
+        const {target} = e;
+        if(target.files) {
+            const file = target.files[0];
+            setModel({...model, images: [...model.images, file]});
+        }
+        target.value="";
+    }
+
+    const onSubmitHandler = async (e: React.FocusEvent<HTMLFormElement>) => {
+        e.preventDefault();
         try {
-            const formData = new FormData();
-            formData.append("name", values.name);
-            formData.append("description", values.description);
-            formData.append("categoryId", values.categoryId.toString());
+            // console.log("Send Server form", model);
+            const result = await http_common.post<IProductItem>(
+                `api/products`, model,
+                {
+                    headers: {"Content-Type": "multipart/form-data"}
+                });
+            console.log("Result ", result);
+            navigator("/");
 
-            if (values.image) {
-                for (let i = 0; i < values.image.length; i++) {
-                    formData.append("image", values.image[i]);
-                }
-            }
+        }catch(error: unknown) {     console.log("server error");}
+    }
 
-            await http_common.post("/api/products", formData);
-            navigate("/products");
-        } catch {
-            console.log("Server error");
-        }
-    };
-
-    const formik = useFormik({
-        initialValues,
-        onSubmit: onFormikSubmit,
-        validationSchema: productSchema,
-    });
-
-    const { values, errors, touched, handleChange, handleSubmit, setFieldValue, handleBlur } = formik;
-
-    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const files = e.currentTarget.files;
-        if (files) {
-            setFieldValue("image", Array.from(files));
-        }
-        e.target.value = "";
-    };
+    const filesContent = model.images.map((f, index)=> (
+        <div key={index} className="mb-4">
+            <Link
+                to="#"
+                onClick={(e) => {
+                    e.preventDefault();
+                    setModel({ ...model, images: model.images.filter((x) => x !== f) });
+                    console.log("click delete", f);
+                }}
+            >
+                <FaTrash className="m-2 " />
+            </Link>
+            <div className="relative">
+                <div style={{ height: "150px" }}>
+                    <div className="picture-main">
+                        <img
+                            src={URL.createObjectURL(f)}
+                            className="picture-container"
+                            alt=""
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    ));
 
     return (
-        <>
-            <div className="mx-auto text-center">
-                <h1 className="text-3xl font-bold text-black sm:text-4xl">
-                    Додати продукт
-                </h1>
-            </div>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-            <form onSubmit={handleSubmit} className={"mt-4"}>
-                <i
-                    className="bi bi-arrow-left-circle-fill back-button"
-                    onClick={() => navigate("..")}
-                ></i>
+            <h1 className="font-medium text-3xl">Додати товар</h1>
+            <form onSubmit={onSubmitHandler}>
+                <div className="mt-8 grid lg:grid-cols-1 gap-4">
 
-                <div className="mb-6">
-                    <input
-                        onBlur={handleBlur}
-                        className={`bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 ${
-                            errors.name && touched.name
-                                ? "bg-red-50 border border-red-500 text-red-900 placeholder-red-700 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 dark:bg-red-100 dark:border-red-400"
-                                : ""
-                        }`}
-                        type="text"
-                        placeholder="Name"
-                        name="name"
-                        aria-label="Name"
-                        aria-describedby="basic-addon2"
-                        onChange={handleChange}
-                        value={values.name}
+                    // Ваш компонент, де ви використовуєте InputGroup
+                    <InputGroup
+                        label={"Назва"}
+                        value={model.name}
+                        onChange={onChangeHandler}
+                        field={"name"}
+                        handleChange={onChangeHandler} // Передаємо тут
+                        handleBlur={onChangeHandler}
                     />
-                    {errors.name && touched.name && (
-                        <div className={"mt-2 text-sm text-red-600 dark:text-red-500"}>
-                            {errors.name}
-                        </div>
-                    )}
-                </div>
 
-                <div className="mb-6">
-                    <textarea
-                        onBlur={handleBlur}
-                        className={`bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 ${
-                            errors.description && touched.description
-                                ? "bg-red-50 border border-red-500 text-red-900 placeholder-red-700 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 dark:bg-red-100 dark:border-red-400"
-                                : ""
-                        }`}
-                        placeholder="Description"
-                        name="description"
-                        aria-label="Description"
-                        aria-describedby="basic-addon2"
-                        onChange={handleChange}
-                        value={values.description}
+
+                    <InputGroup
+                        label={"Ціна"}
+                        value={model.price}
+                        onChange={onChangeHandler}
+                        field={"price"}
+                        type={"number"}
+                        handleChange={onChangeHandler} // Передаємо тут
+                        handleBlur={onChangeHandler}
+
                     />
-                    {errors.description && touched.description && (
-                        <div className={"mt-2 text-sm text-red-600 dark:text-red-500"}>
-                            {errors.description}
-                        </div>
-                    )}
-                </div>
 
-                <div className="mb-6 items-center justify-center w-full">
-                    <label
-                        htmlFor="dropzone-file"
-                        className={`flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 ${
-                            errors.image && touched.image
-                                ? "border-red-500 dark:border-red-400 bg-red-50"
-                                : "dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:hover:border-gray-500 dark:hover:bg-gray-600"
-                        }`}
+                    <SelectGroup label={"Категорія"}
+                                 field={"category_id"}
+                                 onChange={onChangeHandler}
+                                 items={categories} />
+
+                    <div>
+                        <label
+                            htmlFor="description"
+                            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                        >
+                            Опис
+                        </label>
+                        <textarea
+                            id="description"
+                            name="description"
+                            value={model.description}
+                            onChange={onChangeHandler}
+                            rows={4}
+                            className="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                            placeholder="Вкажіть опис..."
+                        ></textarea>
+                    </div>
+
+                    <div>
+
+                        <div className="grid lg:grid-cols-8 md:grid-cols-6 sm:grid-cols-4 grid-cols-2 items-center gap-4">
+                            {filesContent}
+                        </div>
+                        <label className="block text-sm font-medium text-gray-700">
+                            Фото
+                        </label>
+
+
+
+
+                        <div className="mt-1 flex items-center">
+                            <label
+                                htmlFor="selectImage"
+                                className="ml-5 rounded-md border border-gray-300 bg-white
+                        py-2 px-3 text-sm font-medium leading-4 text-gray-700
+                        shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2
+                        focus:ring-indigo-500 focus:ring-offset-2"
+                            >
+                                Обрати фото
+                            </label>
+                        </div>
+
+                        <input
+                            type="file"
+                            id="selectImage"
+                            className="hidden"
+                            onChange={onFileChangeHandler}
+                        />
+                    </div>
+
+
+                </div>
+                <div className="space-x-4 mt-8">
+                    <button
+                        type="submit"
+                        className="py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50"
                     >
-                        {values.image && values.image.length > 0 ? (
-                            <div className="flex flex-wrap">
-                                {values.image.map((file, index) => (
-                                    <img
-                                        key={index}
-                                        src={URL.createObjectURL(file)}
-                                        alt={`Selected ${index + 1}`}
-                                        className="p-1 object-fill rounded-lg cursor-pointer m-2"
-                                        style={{ maxWidth: "100px", maxHeight: "100px" }}
-                                    />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                <svg
-                                    className="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400"
-                                    aria-hidden="true"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 20 16"
-                                >
-                                    <path
-                                        stroke="currentColor"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                                    />
-                                </svg>
-                                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                    <span className="font-semibold">Click to upload</span> or
-                                    drag and drop
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    SVG, PNG, JPG
-                                </p>
-                            </div>
-                        )}
-                    </label>
-                    <input
-                        id="dropzone-file"
-                        type="file"
-                        className="hidden"
-                        name="image"
-                        accept="image/*"
-                        multiple
-                        onChange={handleFileChange}
-                    />
-                    {errors.image && touched.image && (
-                        <div className="mt-2 text-sm text-red-600 dark:text-red-500">
-                            {errors.image}
-                        </div>
-                    )}
+                        Додати
+                    </button>
+                    <Link to="/" className="py-2 px-4 bg-white border border-gray-200 text-gray-600 rounded hover:bg-gray-100 active:bg-gray-200 disabled:opacity-50">
+                        Скасувати
+                    </Link>
                 </div>
-
-                <button
-                    type="submit"
-                    className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
-                >
-                    Create
-                </button>
             </form>
-        </>
+        </div>
     );
-};
+}
 
 export default ProductCreatePage;

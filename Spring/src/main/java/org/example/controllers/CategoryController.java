@@ -1,5 +1,6 @@
 package org.example.controllers;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.dto.category.CategoryCreateDTO;
@@ -13,21 +14,23 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import lombok.AllArgsConstructor;
 
-import java.util.ArrayList;
+import java.util.Optional;
 import java.util.List;
 @RestController
-@RequiredArgsConstructor
+@AllArgsConstructor
+@RequestMapping("api/categories")
+@SecurityRequirement(name="my-api")
 public class CategoryController {
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
     private final StorageService storageService;
-    @GetMapping("/")
+    @GetMapping()
     public ResponseEntity<List<CategoryItemDTO>> index() {
-        var result = categoryMapper.listCategoriesToListCategoryItemDTO(categoryRepository.findAll());
-        return new ResponseEntity<>(result, HttpStatus.OK);
+        List<CategoryItemDTO> items = categoryMapper.listCategoriesToListCategoryItemDTO(categoryRepository.findAll());
+        return new ResponseEntity<>(items, HttpStatus.OK);
     }
-
     @PostMapping(value="/api/category", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CategoryEntity create(@Valid @ModelAttribute CategoryCreateDTO dto) {
         var fileName = storageService.saveMultipartFile(dto.getImage());
@@ -36,18 +39,7 @@ public class CategoryController {
         categoryRepository.save(entity);
         return entity;
     }
-    @GetMapping("/api/category/{id}")
-    public ResponseEntity<CategoryItemDTO> getById(@PathVariable int id) {
-        var catOptional= categoryRepository.findById(id);
-        if(catOptional.isPresent())
-        {
-            var result = categoryMapper.categoryToCategoryItemDTO(catOptional.get());
-            return new ResponseEntity<>(result, HttpStatus.OK);
-        }
-        return ResponseEntity.notFound().build();
-    }
-
-    @PutMapping(value= "/api/category/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(value= "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CategoryItemDTO> UpdateCategory(@PathVariable int id, @ModelAttribute CategoryUpdateDTO dto) {
         var catOptional = categoryRepository.findById(id);
         if (!catOptional.isPresent()) {
@@ -68,7 +60,19 @@ public class CategoryController {
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
-    @DeleteMapping(value= "/api/category/{id}")
+    @GetMapping("{id}")
+    public ResponseEntity<CategoryItemDTO> getById(@PathVariable int id) {
+        var catOptional= categoryRepository.findById(id);
+        if(catOptional.isPresent())
+        {
+            var result = categoryMapper.categoryToCategoryItemDTO(catOptional.get());
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+
+    @DeleteMapping("{id}")
     public ResponseEntity<Void> deleteCategory(@PathVariable int id) {
         var catOptional = categoryRepository.findById(id);
         if (!catOptional.isPresent()) {
