@@ -2,13 +2,11 @@ import { Form, Formik } from "formik";
 import InputGroup from "../../../common/InputGroup.tsx";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-
 import http_common from "../../../../http_common.ts";
 import jwtDecode from "jwt-decode";
 import { useState } from "react";
 import * as Yup from "yup";
-import {AuthUserActionType, ILogin, ILoginResult, IUser} from "../../../../entities/Auth.ts";
-import axios from "axios";
+import {AuthUserActionType, ILogin, ILoginResult, IUser, LoginSuccessAction} from "../../../../entities/Auth.ts";
 
 function LoginPage() {
     const dispatch = useDispatch();
@@ -30,26 +28,27 @@ function LoginPage() {
         try {
             const result = await http_common.post<ILoginResult>(
                 "api/account/login",
-                values,
+                values
             );
             const { data } = result;
             const token = data.token;
             localStorage.token = token;
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             const user = jwtDecode(token) as IUser;
-            dispatch({
+            const action : LoginSuccessAction = {
                 type: AuthUserActionType.LOGIN_USER,
                 payload: {
                     sub: user.sub,
                     email: user.email,
                     roles: user.roles,
-                },
-            });
+                }
+            }
+            dispatch(action);
             setMessage("");
             navigate("/");
         } catch {
             setMessage("Invalid email or password");
         }
+
     };
 
     return (

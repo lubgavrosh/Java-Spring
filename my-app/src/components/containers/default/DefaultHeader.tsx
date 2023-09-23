@@ -1,6 +1,9 @@
 import {Link} from "react-router-dom";
+import {useSelector} from "react-redux";
+import {IAuthUser} from "../../../entities/Auth.ts";
 
 const DefaultHeader = () => {
+    const {isAuth, user}=useSelector((store:any)=>store.auth as IAuthUser);
     return (
         <header>
             <nav className="bg-white border-gray-200 dark:bg-gray-900">
@@ -23,9 +26,10 @@ const DefaultHeader = () => {
                             className="z-50 hidden my-4 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600"
                             id="user-dropdown">
                             <div className="px-4 py-3">
-                                <span className="block text-sm text-gray-900 dark:text-white">you</span>
-                                <span
-                                    className="block text-sm  text-gray-500 truncate dark:text-gray-400">your@email.com</span>
+                                <Link to={"logout"}
+                                      className={"block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"}>
+                                    {user?.email}
+                                </Link>
                             </div>
                             <ul className="py-2" aria-labelledby="user-menu-button">
                                 <li>
@@ -41,9 +45,19 @@ const DefaultHeader = () => {
                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Earnings</a>
                                 </li>
                                 <li>
-                                    <Link  to={`/login`}
-                                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Sign
-                                        in</Link>
+                                    {!isAuth ? (
+                                            <Link to={"login"}
+                                                  className={"block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"}>
+                                                Вхід
+                                            </Link>
+                                    ):(
+
+                                        <Link to={"logout"}
+                                                className={"block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"}>
+                                            Вихід
+                                        </Link>
+
+                                    )}
                                 </li>
                             </ul>
                         </div>
